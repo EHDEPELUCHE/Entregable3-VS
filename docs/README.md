@@ -10,6 +10,7 @@ En este repositorio, **fork del original**, concretamente en la rama main, cread
   * [Creación de la imagen de Jenkins](#creación-de-la-imagen-de-jenkins)
   * [Despliegue de los contenedores mediante Terraform](#despliegue-de-los-contenedores-mediante-terraform)
   * [Configuración de Jenkins](#configuración-de-jenkins)
+    * [Creación del Pipeline](#creación-del-pipeline)
 
 ## Creación de la imagen de Jenkins
 
@@ -168,3 +169,64 @@ que inicializan un directorio de trabajo terraform y aplican los cambios descrit
 Ahora debemos hacer la instalación de jenkins. Para ello vamos a usar cualquier navegador y vamos a entrar a la dirección **localhost:8080** para empezar la instalación.
 
 ## Configuración de Jenkins
+
+Cuando desplegamos los contenedores y accedemos a **localhost:8080** encontramos una pantalla que nos solicita una contraseña de administrador. Para ver dicha contraseña vamos a ver los logs del contenedor de jenkins. Para ello vamos a ejecutar en la terminal la siguiente orden:
+
+```bash
+docker logs jenkins-blueocean
+```
+
+cuya salida incluye algo similar a lo siguiente:
+
+```bash
+(...)
+
+*************************************************************
+
+Jenkins initial setup is required. An admin user has been created and a password generated.
+Please use the following password to proceed to installation:
+
+8ccada3616454f5094f4c7efd9249d7f
+
+This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
+
+*************************************************************
+
+(...)
+```
+
+De ahí, podemos copiar la contraseña e introducirla en el navegador con jenkins.
+
+Tras meter la contraseña en el navegador y pulsar en siguiente vamos a elegir el tipo de instalación. En nuestro caso hemos escogido los plugins sugeridos y, tras esperar a que se instalen, podremos pasar a introducir el usuario administrador, modificar la URL de jenkins, si queremos, y finalmente podemos empezar a usar jenkins.
+
+A partir de ahora vamos a seguir las instrucciones del tutorial para poder generar nuestro propio fichero **Jenkinsfile**.
+
+### Creación del Pipeline
+
+Para poder crear nuestro pipeline, lo primero que debemos hacer es hacer click en **Nueva Tarea** tras lo cual vamos a introducir el nombre de nuestro proyecto, **Entregable3-VS** en nuestro caso e indicar que es un Pipeline. 
+
+Además, y antes de guardar la tarea vamos a editar la **Definition** y vamos a decirle que queremos que haga uso de un **SCM**, concretamente de git y le pasamos la URL de nuestro repositorio: **https://github.com/EHDEPELUCHE/Entregable3-VS** con la rama **main** y, debido a cómo tenemos estructurado el proyecto, le indicamos que el fichero **Jenkinsfile** lo va a encontrar en la ruta **docs/Jenkinsfile**. Ahora podemos guardar la tarea.
+
+Ya con la tarea creada en jenkins vamos a crear el fichero **Jenkinsfile** (en la ruta que hemos indicado en la tarea) y pasamos a incluir las instrucciones propuestas en el tutorial:
+
+```groovy
+pipeline {
+    agent any 
+    stages {
+        stage('Build') { 
+            steps {
+                sh 'python -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py' 
+                stash(name: 'compiled-results', includes: 'https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/*.py*') 
+            }
+        }
+    }
+}
+```
+Lo que hace el **Jenkinsfile** arriba descrito indica que le vale cualquier agente (agent any), declara una fase, build, e incluye dos pasos pasa esa fase:
+
+```bash
+sh 'python -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py' 
+stash(name: 'compiled-results', includes: 'https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/*.py*') 
+```
+
+El primero de estos pasos ejecuta el comando que **compila** la aplicación y la librería calc en un único **bytecode** y, el segundo paso, guarda el código source y los ficheros bytecode en el directorio **sources** del repositorio.
