@@ -3,7 +3,7 @@ pipeline {
     stages {
         stage('Build') { 
             steps {
-                sh 'python -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py' 
+                sh 'python3 -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py' 
                 stash(name: 'compiled-results', includes: 'https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/*.py*') 
             }
         }
