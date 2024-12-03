@@ -203,30 +203,3 @@ A partir de ahora vamos a seguir las instrucciones del tutorial para poder gener
 
 ### Creación del Pipeline
 
-Para poder crear nuestro pipeline, lo primero que debemos hacer es hacer click en **Nueva Tarea** tras lo cual vamos a introducir el nombre de nuestro proyecto, **Entregable3-VS** en nuestro caso e indicar que es un Pipeline. 
-
-Además, y antes de guardar la tarea vamos a editar la **Definition** y vamos a decirle que queremos que haga uso de un **SCM**, concretamente de git y le pasamos la URL de nuestro repositorio: **https://github.com/EHDEPELUCHE/Entregable3-VS** con la rama **main** y, debido a cómo tenemos estructurado el proyecto, le indicamos que el fichero **Jenkinsfile** lo va a encontrar en la ruta **docs/Jenkinsfile**. Ahora podemos guardar la tarea.
-
-Ya con la tarea creada en jenkins vamos a crear el fichero **Jenkinsfile** (en la ruta que hemos indicado en la tarea) y pasamos a incluir las instrucciones propuestas en el tutorial:
-
-```groovy
-pipeline {
-    agent any 
-    stages {
-        stage('Build') { 
-            steps {
-                sh 'python -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py' 
-                stash(name: 'compiled-results', includes: 'https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/*.py*') 
-            }
-        }
-    }
-}
-```
-Lo que hace el **Jenkinsfile** arriba descrito indica que le vale cualquier agente (agent any), declara una fase, build, e incluye dos pasos pasa esa fase:
-
-```bash
-sh 'python -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py' 
-stash(name: 'compiled-results', includes: 'https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/*.py*') 
-```
-
-El primero de estos pasos ejecuta el comando que **compila** la aplicación y la librería calc en un único **bytecode** y, el segundo paso, guarda el código source y los ficheros bytecode en el directorio **sources** del repositorio.
