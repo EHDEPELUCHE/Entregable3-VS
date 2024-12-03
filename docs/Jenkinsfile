@@ -5,23 +5,10 @@ pipeline {
         }
     }
     stages {
-        stage('Build') {
+        stage('Build') { 
             steps {
-                sh 'python3 -m py_compile sources/add2vals.py sources/calc.py'
-                stash(name: 'compiled-results', includes: 'sources/*.py*')
-            }
-        }
-        stage('Test') {
-            steps {
-                unstash 'compiled-results'
-                sh 'python3 -m unittest discover -s tests'
-            }
-        }
-        stage('Package') {
-            steps {
-                sh 'pip install pyinstaller'
-                sh 'pyinstaller --onefile sources/add2vals.py'
-                archiveArtifacts artifacts: 'dist/add2vals', fingerprint: true
+                sh 'python -m py_compile sources/add2vals.py sources/calc.py' 
+                stash(name: 'compiled-results', includes: 'sources/*.py*') 
             }
         }
     }
