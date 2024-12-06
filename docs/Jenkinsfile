@@ -2,14 +2,12 @@ pipeline {
     agent {
         docker {
             image 'python'
-            args '-u root'
-            reuseNode true
         }
     }
     stages {
         stage('Install Dependencies') {
             steps {
-                sh 'pip install -r docs/requirements.txt'
+                sh pip install pytest pytest-cov junit-xml
             }
         }
         stage('Build') { 
