@@ -3,8 +3,8 @@
 En este repositorio, **fork del original**, concretamente en la rama main, creada a partir de la rama master mediante un **git checkout -b main**, realizaremos el entregable tercero de la asignatura Virtualización de Sistemas, que abarca las tecnologías de **Terraform**, **Sistema de Control de Versiones SCV** y **Jenkins**.
 
 ### Autores
-  * Álvaro Pérez Vargas **EHDEPELUCHE**
-  * Mª Elena Vázquez Rodríguez **elenavaz**
+  * [Álvaro Pérez Vargas](https://github.com/EHDEPELUCHE) **EHDEPELUCHE**
+  * [Mª Elena Vázquez Rodríguez](https://github.com/elenavaz) **elenavaz**
 
 ## Índice
   * [Creación de la imagen de Jenkins](#creación-de-la-imagen-de-jenkins)
@@ -170,7 +170,7 @@ Ahora debemos hacer la instalación de jenkins. Para ello vamos a usar cualquier
 
 ## Configuración de Jenkins
 
-Cuando desplegamos los contenedores y accedemos a **localhost:8080** encontramos una pantalla que nos solicita una contraseña de administrador. Para ver dicha contraseña vamos a ver los logs del contenedor de jenkins. Para ello vamos a ejecutar en la terminal la siguiente orden:
+Cuando desplegamos los contenedores y accedemos a **localhost:8080** encontramos una la pantalla de jenkins, que nos solicita una contraseña de administrador. Para ver dicha contraseña vamos a ver los logs del contenedor de jenkins. Para ello vamos a ejecutar en la terminal la siguiente orden:
 
 ```bash
 docker logs jenkins-blueocean
@@ -199,7 +199,69 @@ De ahí, podemos copiar la contraseña e introducirla en el navegador con jenkin
 
 Tras meter la contraseña en el navegador y pulsar en siguiente vamos a elegir el tipo de instalación. En nuestro caso hemos escogido los plugins sugeridos y, tras esperar a que se instalen, podremos pasar a introducir el usuario administrador, modificar la URL de jenkins, si queremos, y finalmente podemos empezar a usar jenkins.
 
-A partir de ahora vamos a seguir las instrucciones del tutorial para poder generar nuestro propio fichero **Jenkinsfile**.
-
 ### Creación del Pipeline
 
+Una vez estamos en la pantalla principal de jenkins, para crear nuestro pipeline haremos click en la opción de **Nueva Tarea**, le damos el nombre de **Entregable3-VS** e indicamos que se trata de un **Pipeline** haciendo click en el recuadro pertinente. 
+
+Guardamos los cambios y pasamos a la siguiente pestaña en la que podemos añadir una descripción de nuestro pipeline y, en el apartado de **Pipeline > Definition** indicamos que queremos que tome el script de pipeline desde un **SCM**, hacemos click en **git** e incluímos el enlace a nuestro repositorio: [repositorio](https://github.com/EHDEPELUCHE/Entregable3-VS) e indicamos que queremos que use la rama **main** en vez de **master** para finalmente, en nuestro caso, indicar que el fichero se encuentra en la ruta **docs/jenkinsfile**.
+
+En nuestro caso, hemos usado el fichero Jenkinsfile proporcionado en el ejercicio ya que el que usaba el tutorial/demo de python no estaba configurado para usar **dind** como agente. El fichero **Jenkinsfile** en cuestión es el siguiente:
+
+```Groovy
+pipeline {
+    agent none
+    options {
+        skipStagesAfterUnstable()
+    }
+    stages {
+        stage('Build') {
+            agent {
+                docker {
+                    image 'python:3.12.0-alpine3.18'
+                }
+            }
+            steps {
+                sh 'python -m py_compile sources/add2vals.py sources/calc.py'
+                stash(name: 'compiled-results', includes: 'sources/*.py*')
+            }
+        }
+        stage('Test') {
+            agent {
+                docker {
+                    image 'qnib/pytest'
+                }
+            }
+            steps {
+                sh 'py.test --junit-xml test-reports/results.xml sources/test_calc.py'
+            }
+            post {
+                always {
+                    junit 'test-reports/results.xml'
+                }
+            }
+        }
+        stage('Deliver') { 
+            agent any
+            environment { 
+                VOLUME = '$(pwd)/sources:/src'
+                IMAGE = 'cdrx/pyinstaller-linux:python2'
+            }
+            steps {
+                dir(path: env.BUILD_ID) { 
+                    unstash(name: 'compiled-results') 
+                    sh "docker run --rm -v ${VOLUME} ${IMAGE} 'pyinstaller -F add2vals.py'" 
+                }
+            }
+            post {
+                success {
+                    archiveArtifacts "${env.BUILD_ID}/sources/dist/add2vals" 
+                    sh "docker run --rm -v ${VOLUME} ${IMAGE} 'rm -rf build dist'"
+                }
+            }
+        }
+    }
+}
+```
+
+A continuación una explicación en profundidad del fichero **Jenkinsfile** arriba descrito:
+  *
