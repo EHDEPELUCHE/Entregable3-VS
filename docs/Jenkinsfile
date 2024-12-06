@@ -8,7 +8,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'python -m py_compile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/calc.py'
+                sh 'python -m py_compile sources/add2vals.py sources/calc.py'
             }
         }
         stage('Test') {
@@ -33,11 +33,11 @@ pipeline {
                 }
             }
             steps {
-                sh 'pyinstaller --onefile https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/sources/add2vals.py'
+                sh 'pyinstaller --onefile sources/add2vals.py'
             }
             post {
                 success {
-                    archiveArtifacts 'https://github.com/EHDEPELUCHE/Entregable3-VS/tree/main/dist/add2vals'
+                    archiveArtifacts 'dist/add2vals'
                 }
             }
         }
