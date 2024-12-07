@@ -11,6 +11,8 @@ En este repositorio, **fork del original**, concretamente en la rama main, cread
   * [Despliegue de los contenedores mediante Terraform](#despliegue-de-los-contenedores-mediante-terraform)
   * [Configuración de Jenkins](#configuración-de-jenkins)
     * [Creación del Pipeline](#creación-del-pipeline)
+    * [Ejecución del fichero Jenkinsfile](#ejecución-del-fichero-jenkinsfile)
+    * [Ejecución del artefacto](#ejecución-del-artefacto)
 
 ## Creación de la imagen de Jenkins
 
@@ -203,7 +205,7 @@ Tras meter la contraseña en el navegador y pulsar en siguiente vamos a elegir e
 
 Una vez estamos en la pantalla principal de jenkins, para crear nuestro pipeline haremos click en la opción de **Nueva Tarea**, le damos el nombre de **Entregable3-VS** e indicamos que se trata de un **Pipeline** haciendo click en el recuadro pertinente. 
 
-Guardamos los cambios y pasamos a la siguiente pestaña en la que podemos añadir una descripción de nuestro pipeline y, en el apartado de **Pipeline > Definition** indicamos que queremos que tome el script de pipeline desde un **SCM**, hacemos click en **git** e incluímos el enlace a nuestro repositorio: [repositorio](https://github.com/EHDEPELUCHE/Entregable3-VS) e indicamos que queremos que use la rama **main** en vez de **master** para finalmente, en nuestro caso, indicar que el fichero se encuentra en la ruta **docs/jenkinsfile**.
+Guardamos los cambios y pasamos a la siguiente pestaña en la que podemos añadir una descripción de nuestro pipeline y, en el apartado de **Pipeline > Definition** indicamos que queremos que tome el script de pipeline desde un **SCM**, hacemos click en **git** e incluímos el enlace a nuestro repositorio: [GitHub](https://github.com/EHDEPELUCHE/Entregable3-VS) e indicamos que queremos que use la rama **main** en vez de **master** para, finalmente, indicar que el fichero se encuentra en la ruta **docs/jenkinsfile**.
 
 En nuestro caso, hemos usado el fichero Jenkinsfile proporcionado en el ejercicio ya que el que usaba el tutorial/demo de python no estaba configurado para usar **dind** como agente. El fichero **Jenkinsfile** en cuestión es el siguiente:
 
@@ -264,4 +266,38 @@ pipeline {
 ```
 
 A continuación una explicación en profundidad del fichero **Jenkinsfile** arriba descrito:
-  *
+  * Para empezar, el Jenkinsfile se compone de **tres etapas** junto con una **configuración general**:
+    * **Configuración general**: es el primer bloque, en el que indicamos que no habrá un agente por defecto para todo el pipeline mediante **agent any** y qué, si alguna etapa marca el build como inestable, las etapas siguientes serán omitidas mediante el **options { skipStagesAfterUnstable() }**.
+    * **Etapa Build**: durante el build se usará el agente de docker de **python:3.12.0-alpine3.18** y se definen dos pasos a realizar durante la etapa:
+      * El primero de estos pasos, **sh 'python -m py_compile sources/add2vals.py sources/calc.py'**, se encarga de la compilación de los ficheros add2vals y calc.
+      * El segundo, **stash(name: 'compiled-results', includes: 'sources/*.py*')**, guarda esos archivos compilados para las etapas posteriores.
+    * **Etapa Test**: en esta etapa indicamos que el agente docker a utilizar será **qnib/pytest** y se define un paso a realizar junto con una subetapa de post-ejecución con un paso más:
+      * En pasos a realizar en la etapa de test tenemos la orden **sh 'py.test --junit-xml test-reports/results.xml sources/test_calc.py'**, que ejecuta las pruebas unitarias con pytest y genera un reporte en formato jUnit XML.
+      * En la etapa de post ejecución se indica, mediante **always { junit 'test-reports/results.xml' }**, que siempre que se realicen los tests se publiquen los resultados en formato de jUnit.
+    * **Etapa Deliver**: en esta última etapa no especificamos un agente específico de docker, pero sí hacemos algunas declaraciones sobre el entorno:
+      * Definimos un volumen mediante **VOLUME = '$(pwd)/sources:/src'** y montamos la carpeta de sources en el direcotrio src del contenedor.
+      * Indicamos, mediante **IMAGE = 'cdrx/pyinstaller-linux:python2'**, qué imagen vamos a utilizar para hacer el empaquetado del código.
+    
+      y cuenta además con un par de pasos (declarados en **steps {...}**) y un par de acciones a realizar tras la ejecución (declaradas en **post {...}**):
+      * Para las pasos a realizar primero cambiamos al directorio especificado por env.BUILD.ID mediante **dir(path: env.BUILD_ID) {...}** y, una vez dentro se realizan dos acciones:
+        * Primero, mediante **unstash(name: 'compiled-results')** recuperamos los archivos compilados que guardamos en la etapa de Build.
+        * Segundo, y mediante **sh "docker run --rm -v \${VOLUME} ${IMAGE} 'pyinstaller -F add2vals.py'"**, ejecutamos pyinstaller dentro de un contenedor Docker, empaquetando el script add2vals en un ejecutable.
+      * En la fase de post ejecución, en caso de éxito (**success {...}**), vamos a realizar dos acciones:
+        * Primero, mediante **archiveArtifacts "${env.BUILD_ID}/sources/dist/add2vals"**, archiva el ejecutable generado.
+        * Segundo, con **sh "docker run --rm -v \${VOLUME} ${IMAGE} 'rm -rf build dist'"**, ordenamos que se limpien los directorios de build y dist dentro del contenedor docker.
+
+### Ejecución del fichero Jenkinsfile
+
+Para ejecutar el fichero de **Jenkinsfile**, si hemos seguido correctamente los pasos, bastará con hacer click en el botón **"Construir ahora"** y, tras esperar algunos instantes (algo más si es la primera vez, ya que tiene que descargar las imágenes docker) veremos por pantalla el resultado exitoso de la ejecución del pipeline descrito por el Jenkinsfile.
+
+### Ejecución del artefacto
+
+Si el resultado del test ha sido exitoso, veremos que se ha generado el artefacto **add2vals**, que es el ejecutable del programa. Descargamos el ejecutable haciendo click sobre el y, desde una terminal, navegamos al directorio en el que se encuentra para hacer un 
+```bash
+chmod u+x ./add2vals
+```
+con lo que le damos al usuario permisos para ejecutar el ejecutable add2vals. Para hacer la ejecución haremos un
+```bash
+./add2vals 5 8
+```
+y, si todo ha ido bien, tendremos por pantalla el resultado de realizar la suma de ambos valores.
